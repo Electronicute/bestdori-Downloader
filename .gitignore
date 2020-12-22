@@ -58,8 +58,6 @@ sysinfo.txt
 # Crashlytics generated file
 crashlytics-build.properties
 
-# meta
-.meta
-
 #指定文件夹
 Live2dTools
+*.meta
