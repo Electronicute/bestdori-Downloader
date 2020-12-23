@@ -40,17 +40,6 @@ namespace Live2DCharacter
         }
 
 		/// <summary>
-		/// 获取指定节点下的所有叶子节点
-		/// </summary>
-		public static List<TreeNode<T>> GetLeafs(TreeNode<T> node)
-        {
-			List<TreeNode<T>> leafs = new List<TreeNode<T>>();
-			FindLeafs(node, leafs);
-
-			return leafs;
-		}
-
-		/// <summary>
 		/// 遍历
 		/// </summary>
 		public void Traverse(Action<TreeNode<T>> action)
@@ -59,8 +48,22 @@ namespace Live2DCharacter
         }
 		#endregion
 
-		#region ----私有方法----
-		private static bool FindNode(T data, TreeNode<T> node, out TreeNode<T> result)
+		#region ----静态方法----
+		/// <summary>
+		/// 获取指定节点下的所有叶子节点
+		/// </summary>
+		public static List<TreeNode<T>> GetLeafs(TreeNode<T> node)
+		{
+			List<TreeNode<T>> leafs = new List<TreeNode<T>>();
+			FindLeafs(node, leafs);
+
+			return leafs;
+		}
+
+		/// <summary>
+		/// 遍历查找匹配Data的子节点
+		/// </summary>
+		public static bool FindNode(T data, TreeNode<T> node, out TreeNode<T> result)
         {
             if (node.Data.Equals(data))
             {
@@ -82,6 +85,9 @@ namespace Live2DCharacter
 			return false;
         }
 
+		/// <summary>
+		/// 遍历执行Action
+		/// </summary>
 		public static void Traverse(TreeNode<T> node, Action<TreeNode<T>> action)
         {
             if (node != null)

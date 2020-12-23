@@ -12,29 +12,21 @@ using UnityEngine.EventSystems;
 
 namespace Live2DCharacter
 {
-    public class DirItem : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
+    public class DirItem : MonoBehaviour, IPointerClickHandler
     {
         #region ----字段----
         private int index;
         public Text text;
+        public Image loaded;
         private Action<int> selected;
-        private Action<int> hoverd;
+        private static Color Gray = new Color(0.4f, 0.4f, 0.4f, 1);
+        private static Color Green = Color.green;
         #endregion
 
         #region ----MonoBehaviour----
-        public void OnPointerEnter(PointerEventData eventData)
-        {
-            hoverd?.Invoke(index);
-        }
-
         public void OnPointerClick(PointerEventData eventData)
         {
             selected?.Invoke(index);
-        }
-
-        public void OnPointerExit(PointerEventData eventData)
-        {
-            hoverd?.Invoke(-1);
         }
         #endregion
 
@@ -43,11 +35,26 @@ namespace Live2DCharacter
 
         public void SetText(string str) => text.text = str;
 
+        public string GetText() => text.text;
+
+        public void SetState(NodeDataState state)
+        {
+            loaded.gameObject.SetActive(false);
+            if (state == NodeDataState.Downloaded)
+            {
+                loaded.gameObject.SetActive(true);
+                loaded.color = Green;
+            }else if (state == NodeDataState.Loading)
+            {
+                loaded.gameObject.SetActive(true);
+                loaded.color = Gray;
+            }
+        }
+
         public void Show(bool show) => gameObject.SetActive(show);
 
-        public void Register(Action<int> onSelect, Action<int> onHover)
+        public void Register(Action<int> onSelect)
         {
-            hoverd += onHover;
             selected += onSelect;
         }
         #endregion

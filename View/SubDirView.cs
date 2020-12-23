@@ -19,7 +19,6 @@ namespace Live2DCharacter
         public GameObject subDirItem;
         public Transform itemParent;
         public Text dirname;
-        public RectTransform flag;
         private Action<int> selected;
         private readonly DirItem[] items = new DirItem[100];
         private Vector2 pos;
@@ -35,7 +34,6 @@ namespace Live2DCharacter
         #region ----MonoBehaviour----
         void Awake()
         {
-            pos = flag.anchoredPosition;
 	    }
         #endregion
 
@@ -50,7 +48,7 @@ namespace Live2DCharacter
                 item = go.GetComponent<DirItem>();
                 items[i] = item;
                 item.Show(false);
-                item.Register(OnSelected, OnHoverd);
+                item.Register(OnSelected);
             }
         }
 
@@ -60,21 +58,32 @@ namespace Live2DCharacter
 
         public void SetDirName(string name) => dirname.text = name;
 
-        public void ShowDirItems(List<string> dirs, int currPage, int maxPage, bool isLeaf = false, bool ani = true)
+        public void ShowDirItems(List<string> dirs, List<NodeDataState> states, int currPage, int maxPage, bool isLeaf = false, bool ani = true)
         {
             this.isLeaf = isLeaf;
             isShowFinish = false;
-            flag.gameObject.SetActive(false);
-            if (ani)
+            //if (ani)
+            //{
+            //    StopAllCoroutines();
+            //    StartCoroutine(ShowDir(dirs, states, currPage, maxPage, isLeaf));
+            //}
+            //else
             {
-                StopAllCoroutines();
-                StartCoroutine(ShowDir(dirs, currPage, maxPage, isLeaf));
-            }
-            else
-            {
-                ShowDirNormal(dirs, currPage, maxPage, isLeaf);
+                ShowDirNormal(dirs, states, currPage, maxPage, isLeaf);
             }
             
+        }
+
+        public void UpdateItem(string name, NodeDataState state)
+        {
+            foreach (var im in items)
+            {
+                if (im.GetText() == name)
+                {
+                    im.SetState(state);
+                    break;
+                }
+            }
         }
 
         public void Show(bool show) => gameObject.SetActive(show);
@@ -91,18 +100,7 @@ namespace Live2DCharacter
             }
         }
 
-        private void OnHoverd(int index)
-        {
-            if (index == -1 || !isShowFinish || isLeaf)
-            {
-                flag.gameObject.SetActive(false);
-                return;
-            }
-            flag.gameObject.SetActive(true);
-            flag.anchoredPosition = new Vector2(pos.x, pos.y - 24 * index);
-        }
-
-        IEnumerator ShowDir(List<string> dirs, int currPage, int maxPage, bool isLeaf = false)
+        IEnumerator ShowDir(List<string> dirs, List<NodeDataState> states, int currPage, int maxPage, bool isLeaf = false)
         {
             DirItem item;
             
@@ -119,6 +117,7 @@ namespace Live2DCharacter
                 {
                     item.SetIndex(i);
                     item.SetText(dirs[i]);
+                    item.SetState(states[i]);
                     item.Show(true);
                     yield return new WaitForSeconds(time);
                 }
@@ -130,10 +129,9 @@ namespace Live2DCharacter
             yield return new WaitForEndOfFrame();
             onShowFinish?.Invoke();
             isShowFinish = true;
-            flag.gameObject.SetActive(!isLeaf && dirs.Count > 0);
         }
 
-        void ShowDirNormal(List<string> dirs, int currPage, int maxPage, bool isLeaf = false)
+        void ShowDirNormal(List<string> dirs, List<NodeDataState> states, int currPage, int maxPage, bool isLeaf = false)
         {
             DirItem item;
             for (int i = 0; i < items.Length; i++)
@@ -143,6 +141,7 @@ namespace Live2DCharacter
                 {
                     item.SetIndex(i);
                     item.SetText(dirs[i]);
+                    item.SetState(states[i]);
                     item.Show(true);
                 }
                 else
@@ -152,7 +151,6 @@ namespace Live2DCharacter
             }
             onShowFinish?.Invoke();
             isShowFinish = true;
-            flag.gameObject.SetActive(!isLeaf && dirs.Count > 0);
             ShowPage(dirs != null && dirs.Count > 0);
             preBtn.interactable = (currPage > 1);
             nextBtn.interactable = (currPage < maxPage);

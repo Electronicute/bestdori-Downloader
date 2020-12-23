@@ -16,15 +16,15 @@ namespace Live2DCharacter
 		public string Name => dName;
 		public bool IsLeaf { get; set; }
 
-        public bool IsDownloaded { get; set; }
+        public NodeDataState State { get; set; }
 		#endregion
 
 		#region ----构造方法----
-		public NodeData(string name, bool isLeaf = false, bool isDownloaded = false)
+		public NodeData(string name, bool isLeaf = false, NodeDataState state = NodeDataState.Unload)
         {
 			this.dName = name;
 			IsLeaf = isLeaf;
-            IsDownloaded = isDownloaded;
+            State = state;
         }
         #endregion
 

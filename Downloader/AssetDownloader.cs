@@ -53,16 +53,16 @@ namespace Live2DCharacter
 		#endregion
 
 		#region ----公有方法----
-		public void AddToRequest(string url, Action<bool> onCompleted)
+		public void AddToRequest(string url, TreeNode<NodeData> node, Action<TreeNode<NodeData>> onCompleted)
         {
             string fileName = DownloadCtl.GetFileNameByPath(url);
             if (!res.ContainsKey(url))
             {
                 CreateDirIfNotFound(url, false);
-                AssetRes assetRes = new AssetRes(GetAssetUrl(url), GetPath(url), onCompleted);
+                AssetRes assetRes = new AssetRes(GetAssetUrl(url), GetPath(url), node, onCompleted);
 				res.Add(url, assetRes);
 				reqs.AddLast(assetRes);
-                Debug($"↓↓{fileName}");
+                //Debug($"↓↓{fileName}");
                 TryStartRequest();
             }
             else
@@ -84,16 +84,16 @@ namespace Live2DCharacter
             debugger?.Invoke(msg, color);
         }
 
-        public void RequestJson(string url, Action<string, string> onCompleted)
+        public void RequestJson(TreeNode<NodeData> node, string url, Action<TreeNode<NodeData>, string> onCompleted)
         {
-            string fileName = DownloadCtl.GetFileNameByPath(url);
+            string fileName = node != null ? node.Data.Name : null;
             newReqCount++;
             if (!res.ContainsKey(url))
             {
-                JsonRes json = new JsonRes(GetInfoUrl(url), onCompleted);
+                JsonRes json = new JsonRes(node, GetInfoUrl(url), onCompleted);
                 res.Add(url, json);
                 reqs.AddLast(json);
-                Debug($"↑↑{fileName}");
+                //Debug($"↑↑{fileName}");
                 TryStartRequest();
             }
             else
@@ -106,17 +106,17 @@ namespace Live2DCharacter
         {
             Live2dRes live = new Live2dRes(paths, onCompleted);
             reqs.AddLast(live);
-            Debug("加载Live2D！");
+            //Debug("加载Live2D！");
             TryStartRequest();
         }
 
-        public void RequestAssets(string[] urls, Action<bool> onCompleted)
+        public void RequestAssets(string[] urls, TreeNode<NodeData>[] nds, Action<TreeNode<NodeData>> onCompleted, Action<bool> onAllCompleted)
         {
-            foreach (string url in urls)
+            for (int i = 0; i < urls.Length; i++)
             {
-                AddToRequest(url, null);
+                AddToRequest(urls[i], nds[i], onCompleted);
             }
-            allCompleted += onCompleted;
+            allCompleted += onAllCompleted;
             newReqCount += urls.Length;
             newWriteCount += urls.Length;
             Debug($"新增{urls.Length}个下载");
@@ -160,10 +160,10 @@ namespace Live2DCharacter
                     StartCoroutine(task.SendRequest(OnRequestFinish));
                     return;
                 }
-                if (curTrd == 0)
-                {
-                    Debug("所有资源↑↑完毕！", ColorView.Green);
-                }
+                //if (curTrd == 0)
+                //{
+                //    //Debug("所有资源↑↑完毕！", ColorView.Green);
+                //}
             }
         }
 

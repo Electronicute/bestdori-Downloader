@@ -18,7 +18,8 @@ namespace Live2DCharacter
 		private string url;
 		private UnityWebRequest request;
 		private string path;
-		private Action<bool> OnCompleted;
+		private Action<TreeNode<NodeData>> OnCompleted;
+		private TreeNode<NodeData> node;
 		#endregion
 
 		#region ----属性----
@@ -27,10 +28,11 @@ namespace Live2DCharacter
 		#endregion
 
 		#region ----构造方法----
-		public AssetRes(string url, string path, Action<bool> action)
+		public AssetRes(string url, string path, TreeNode<NodeData> node, Action<TreeNode<NodeData>> action)
         {
 			this.url = url;
 			this.path = path;
+			this.node = node;
             if (action != null)
             {
 				OnCompleted += action;
@@ -64,7 +66,7 @@ namespace Live2DCharacter
         {
             if (request == null || request.downloadHandler == null)
             {
-				OnCompleted?.Invoke(false);
+				//OnCompleted?.Invoke(false);
 				finish?.Invoke();
 				yield break;
             }
@@ -77,7 +79,7 @@ namespace Live2DCharacter
 			fs.Dispose();
 			request.Dispose();
 			finish?.Invoke();
-			OnCompleted?.Invoke(false);
+			OnCompleted?.Invoke(node);
 		}
 
 		void IRes.Release()

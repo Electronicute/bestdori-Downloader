@@ -75,117 +75,121 @@ namespace Live2DCharacter
 			view.ShowDlBtn(false);
 			view.ShowReturnBtn(false);
 
-			Debug(@"/*****************************", ColorView.Green);
-			Debug(@"* <color=#FF7EF8>制作： 咕咕咕</color>", ColorView.Green);
-			Debug(@"* <color=#FF7EF8>时间： 2020-12-20</color>", ColorView.Green);
-			Debug(@"******************************/", ColorView.Green);
+			Debug("初始化中...", ColorView.Default);
 
 			localPath = PlayerPrefs.GetString(localPathKey, @"D:\Download");
             if (!string.IsNullOrWhiteSpace(localPath))
             {
 				view.SetDlPath(localPath);
 			}
-			WindowAnimation.Instance.ShowDownloadWindow(RequestInfoJson);
+			RequestInfoJson();
+			WindowAnimation.Instance.ShowDownloadWindow(null);
 		}
 		#endregion
 
-		#region ----公有方法----
+		#region ----与Downloader交互----
 		public void RequestInfoJson()
 		{
-			TextAsset text = Resources.Load<TextAsset>("Json/" + infoName);
-			ParseInfoJson(text.text);
-			//GetJson(infoName + suffix, ParseInfoJson);
+			//TextAsset text = Resources.Load<TextAsset>("Json/" + infoName);
+			//ParseInfoJson(text.text);
+			Debug("请求Json数据中...", ColorView.Default);
+			downloader.RequestJson(null, infoName + suffix, (n, s) => ParseInfoJson(s));
 		}
 
 		public void LoadTree(TreeNode<NodeData> node)
 		{
-			List<TreeNode<NodeData>> leafs = GenericTree<NodeData>.GetLeafs(node);
-			GenericTree<NodeData>.Traverse(node, (nd) => nd.Data.IsDownloaded = true);
-			float[] currProgress = downloader.Progress();
-            if (currProgress != null && currProgress[0] >= 1)
-            {
-				downloader.ClearCompletedCount();
-            }
-			int count = 0;
-			foreach (var l in leafs)
+			if (node.Data.State == NodeDataState.Unload)
 			{
-                if (!l.Data.IsLeaf)
-                {
-					count++;
-					//Debug(l.ToString(), ColorView.Red);
-					GetJson(GetPathWithoutRoot(l) + suffix, ParseLoadJson);
+				List<TreeNode<NodeData>> loads = new List<TreeNode<NodeData>>();
+				TraverseSelect(node, loads);
+				GenericTree<NodeData>.Traverse(node, (nd) => nd.Data.State = NodeDataState.Loading);
+				float[] currProgress = downloader.Progress();
+				if (currProgress != null && currProgress[0] >= 1)
+				{
+					downloader.ClearCompletedCount();
+				}
+
+				foreach (var l in loads)
+				{
+					LoadJson(l, ParseLoadJson);
+				}
+				if (loads.Count > 0)
+				{
+					pView.Show(true);
+					Debug($"新增{loads.Count}个请求");
 				}
 			}
-            if (count > 0)
-            {
-				pView.Show(true);
-            }
-			Debug($"新增{count}个请求");
 		}
 
-		public static string GetFileNameByPath(string path)
-		{
-			string temp = path.Replace('/', '\\');
-
-			return temp.Substring(temp.LastIndexOf('\\') + 1);
-		}
-
-		#region ----与Downloader交互----
-		public void LoadAssets(string[] urls, Action<bool> onCompleted)
+		public void LoadAssets(string[] urls, TreeNode<NodeData>[] nds, Action<bool> onCompleted)
         {
-			downloader.RequestAssets(urls, onCompleted);
+			downloader.RequestAssets(urls, nds, OnNodeCompleted, onCompleted);
         }
 
-		public void GetJson(string url, Action<string, string> onCompleted)
+		public void LoadJson(TreeNode<NodeData> node, Action<TreeNode<NodeData>, string> onCompleted)
         {
-			downloader.RequestJson(url, onCompleted);
+			string url = GetPathWithoutRoot(node) + suffix;
+			downloader.RequestJson(node, url, onCompleted);
         }
-        #endregion
-        #endregion
 
-        #region ----私有方法----
-        #region ----树节点的操作----
-        private void ParseInfoJson(string json)
+		private void OnNodeCompleted(TreeNode<NodeData> node)
+        {
+			node.Data.State = NodeDataState.Downloaded;
+			dirView.UpdateItem(node.Data.Name, node.Data.State);
+        }
+		#endregion
+
+		#region ----ParseJsonData----
+		private void ParseInfoJson(string json)
 		{
 			if (json != null)
 			{
+				Debug("/*****************************", ColorView.Green);
+				Debug("* <color=#FF7EF8>制作： 咕咕咕</color>", ColorView.Green);
+				Debug("* <color=#FF7EF8>时间： 2020-12-20</color>", ColorView.Green);
+				Debug("******************************/", ColorView.Green);
+				
 				JsonData jsonData = JsonParser.GetData(json);
 				currNode = new TreeNode<NodeData>(new NodeData(infoName));
 				jsonTree = new GenericTree<NodeData>(currNode);
 				TraverseCreate(jsonData, currNode);
+				Check(currNode);
 				view.ShowJsonTree(true);
 				ShowNodeDirItems();
+
+				Debug("初始化完毕！", ColorView.Default);
 			}
 		}
 
-		private void ParseLoadJson(string url, string json)
+		private void ParseLoadJson(TreeNode<NodeData> node, string json)
 		{
 			if (json != null)
 			{
-				string path = url.Replace(InfoUrl, "");
-				path = path.Substring(0, path.Length - 5);
-				TreeNode<NodeData> parent = FindNode(path, jsonTree.Head);
 				JsonData datas = JsonParser.GetData(json);
-				TraverseCreate(datas, parent, true, true);
-
-				List<TreeNode<NodeData>> childs = parent.Childs;
+				node.Data.State = NodeDataState.Downloaded;
+				TraverseCreate(datas, node, true, NodeDataState.Loading);
+				Check(jsonTree.Head);
+				List<TreeNode<NodeData>> childs = node.Childs;
 				
 				if (childs != null && childs.Count > 0)
 				{
 					string[] urls = new string[childs.Count];
+					TreeNode<NodeData>[] nds = new TreeNode<NodeData>[childs.Count];
 					for (int i = 0; i < childs.Count; i++)
 					{
-						urls[i] = GetPathWithoutRoot(parent) + ResSuffix + '/' + childs[i].Data.Name;
+						nds[i] = childs[i];
+						urls[i] = GetPathWithoutRoot(node) + ResSuffix + '/' + childs[i].Data.Name;
 					}
-					LoadAssets(urls, ShowNodeDirItems);
+					LoadAssets(urls, nds, ShowNodeDirItems);
 				}
+				ShowNodeDirItems();
 			}
 		}
 
 		/// <summary>
 		/// 遍历JsonData创建子树
 		/// </summary>
-		private void TraverseCreate(JsonData data, TreeNode<NodeData> parent, bool isLeaf = false, bool isDownloaded = false)
+		private void TraverseCreate(JsonData data, TreeNode<NodeData> parent, bool isLeaf = false, NodeDataState state = NodeDataState.Unload)
 		{
 			if (data != null)
 			{
@@ -195,12 +199,12 @@ namespace Live2DCharacter
 				{
 					foreach (string n in data.Keys)
 					{
-						child = new TreeNode<NodeData>(new NodeData(n, isLeaf, isDownloaded), parent);
+						child = new TreeNode<NodeData>(new NodeData(n, isLeaf, state), parent);
 						parent.AddChild(child);
 						d = data[n];
 						if (d.IsObject || d.IsArray)
 						{
-							TraverseCreate(d, child, isLeaf, isDownloaded);
+							TraverseCreate(d, child, isLeaf, state);
 						}
 					}
 					return;
@@ -209,12 +213,12 @@ namespace Live2DCharacter
 				{
 					for (int i = 0; i < data.Count; i++)
 					{
-						child = new TreeNode<NodeData>(new NodeData(data[i].ToString(), isLeaf, isDownloaded), parent);
+						child = new TreeNode<NodeData>(new NodeData(data[i].ToString(), isLeaf, state), parent);
 						parent.AddChild(child);
 						d = data[i];
 						if (d.IsObject || d.IsArray)
 						{
-							TraverseCreate(d, child, isLeaf, isDownloaded);
+							TraverseCreate(d, child, isLeaf, state);
 						}
 					}
 				}
@@ -222,7 +226,81 @@ namespace Live2DCharacter
 		}
 
 		/// <summary>
-		/// 获取字符串路径
+		/// 遍历筛选节点下未下载的节点
+		/// </summary>
+		private void TraverseSelect(TreeNode<NodeData> node, List<TreeNode<NodeData>> outputList)
+        {
+			if (node.Data.State == NodeDataState.Unload && node.Childs == null && !node.Data.IsLeaf)
+			{
+				outputList.Add(node);
+				return;
+			}
+			foreach (var n in node.Childs)
+			{
+				TraverseSelect(n, outputList);
+			}
+		}
+
+		private bool Check(TreeNode<NodeData> node)
+        {
+            if (node.Data.State == NodeDataState.Downloaded)
+            {
+				return true;
+            }
+            if (node.Childs != null)
+            {
+				bool dl = true;
+                foreach (var child in node.Childs)
+                {
+                    dl &= Check(child);
+                }
+                if (dl)
+                {
+					node.Data.State = NodeDataState.Downloaded;
+					return true;
+                }
+            }
+
+			return CheckNodeDownload(node);
+        }
+
+		private bool CheckNodeDownload(TreeNode<NodeData> node)
+        {
+			if (node.Data.State == NodeDataState.Unload && node.Childs == null)
+			{
+				string path = GetLocalResPath(node);
+				if (Directory.Exists(path) && Directory.GetFiles(path).Length > 0)
+				{
+					node.Data.State = NodeDataState.Downloaded;
+					string[] fnames = Directory.GetFiles(path);
+					string fname;
+					TreeNode<NodeData> nd;
+					for (int i = 0; i < fnames.Length; i++)
+					{
+						fname = GetFileNameByPath(fnames[i]);
+						nd = new TreeNode<NodeData>(new NodeData(fname, true, NodeDataState.Downloaded), node);
+						node.AddChild(nd);
+					}
+					return true;
+				}
+			}
+			return false;
+		}
+		#endregion
+
+		#region ----节点与路径转化----
+		/// <summary>
+		/// 文件路径->文件名
+		/// </summary>
+		public static string GetFileNameByPath(string path)
+		{
+			string temp = path.Replace('/', '\\');
+
+			return temp.Substring(temp.LastIndexOf('\\') + 1);
+		}
+
+		/// <summary>
+		/// 节点->路径
 		/// </summary>
 		private string GetPath(TreeNode<NodeData> node)
 		{
@@ -237,28 +315,31 @@ namespace Live2DCharacter
 			return sb.ToString();
 		}
 
+		/// <summary>
+		/// 节点->路径（不带根节点）
+		/// </summary>
 		private string GetPathWithoutRoot(TreeNode<NodeData> node)
-        {
-			List<TreeNode<NodeData>> path = node.GetPath();
-			StringBuilder sb = new StringBuilder();
-			for (int i = path.Count - 1; i > 0; i--)
-			{
-				sb.Append(path[i] + "/");
-			}
-			sb.Append(path[0]);
-
-			return sb.ToString().Replace(infoName + "/", "");
+		{
+			return GetPath(node).Replace(infoName + "/", "");
 		}
 
 		/// <summary>
-		/// 获取路径最后的节点
+		/// Json树的叶子节点->本地下载的目录
+		/// </summary>
+		private string GetLocalResPath(TreeNode<NodeData> node)
+		{
+			return localPath + "/" + GetPathWithoutRoot(node) + ResSuffix;
+		}
+
+		/// <summary>
+		/// 节点顺着路径找子节点
 		/// </summary>
 		private TreeNode<NodeData> FindNode(string path, TreeNode<NodeData> node)
 		{
 			string[] ps = path.Split('/');
 			foreach (string str in ps)
 			{
-				node = node.GetChild(new NodeData(str));
+				node = node.FindChild(new NodeData(str));
 				if (node == null)
 				{
 					return null;
@@ -267,36 +348,10 @@ namespace Live2DCharacter
 
 			return node;
 		}
+		#endregion
 
-		private void CheckCurrNodePath()
-        {
-			if (!currNode.Data.IsDownloaded && currNode.Childs == null)
-			{
-				string path = GetLocalResPath(currNode);
-				if (Directory.Exists(path) && Directory.GetFiles(path).Length > 0)
-				{
-					currNode.Data.IsDownloaded = true;
-					string[] fnames = Directory.GetFiles(path);
-					string fname;
-					TreeNode<NodeData> nd;
-					for (int i = 0; i < fnames.Length; i++)
-					{
-						fname = GetFileNameByPath(fnames[i]);
-						nd = new TreeNode<NodeData>(new NodeData(fname, true, true), currNode);
-						currNode.AddChild(nd);
-					}
-				}
-			}
-		}
-
-		private string GetLocalResPath(TreeNode<NodeData> node)
-        {
-			return localPath + "/" + GetPathWithoutRoot(node) + ResSuffix;
-        }
-        #endregion
-
-        #region ----与DownloadView交互----
-        private void Debug(string msg, ColorView color = ColorView.Default)
+		#region ----与DownloadView交互----
+		private void Debug(string msg, ColorView color = ColorView.Default)
         {
 			view.ShowDebug(msg, color);
         }
@@ -313,6 +368,7 @@ namespace Live2DCharacter
 				OnClickChangePath();
 				return;
             }
+			view.ShowDlBtn(false);
 			LoadTree(currNode);
 		}
 
@@ -343,10 +399,11 @@ namespace Live2DCharacter
 			dirView.Show(true);
 			view.dlBtn.interactable = false;
 			view.rtBtn.interactable = false;
-			CheckCurrNodePath();
+			//CheckCurrNodePath();
 			if (currNode.Childs != null)
 			{
 				List<string> names;
+				List<NodeDataState> states;
 				int startIndex = 0;
 				int lastIndex = 0;
 				if (currNode.Childs.Count > ShowItemCount)
@@ -357,17 +414,20 @@ namespace Live2DCharacter
                     {
 						lastIndex = currNode.Childs.Count;
 						names = new List<string>(lastIndex - startIndex);
+						states = new List<NodeDataState>(lastIndex - startIndex);
                     }
                     else
                     {
 						lastIndex = startIndex + ShowItemCount;
 						names = new List<string>(ShowItemCount);
+						states = new List<NodeDataState>(ShowItemCount);
 					}
 				}
                 else
                 {
 					lastIndex = currNode.Childs.Count;
 					names = new List<string>(currNode.Childs.Count);
+					states = new List<NodeDataState>(currNode.Childs.Count);
 					currPage = 1;
 					maxPage = 1;
 				}
@@ -375,19 +435,20 @@ namespace Live2DCharacter
 				for (int i = startIndex; i < lastIndex; i++)
 				{
 					names.Add(currNode.Childs[i].Data.Name);
+					states.Add(currNode.Childs[i].Data.State);
 				}
-				dirView.ShowDirItems(names, currPage, maxPage, currNode.Childs[0].Data.IsLeaf, ani);
+				dirView.ShowDirItems(names, states, currPage, maxPage, currNode.Childs[0].Data.IsLeaf, ani);
 			}
 			else
 			{
 				currPage = 0;
 				maxPage = 0;
-				dirView.ShowDirItems(null, currPage, maxPage, true, false);
+				dirView.ShowDirItems(null, null, currPage, maxPage, true, false);
 			}
 			dirView.SetDirName(currNode.Data.Name);
 			view.ShowReturnBtn(currNode.Parent != null);
             
-			view.ShowDlBtn(currNode.Data.IsDownloaded == false && currNode.Parent != null);
+			view.ShowDlBtn(currNode.Data.State == NodeDataState.Unload && currNode.Parent != null);
 			view.SetTreeNode(GetPath(currNode));
 			dirView.ShowLiveBtn(IsLiveFolder());
 		}
@@ -395,7 +456,7 @@ namespace Live2DCharacter
 		private bool IsLiveFolder()
         {
 			var childs = currNode.Childs;
-            if (currNode.Data.IsDownloaded)
+            if (currNode.Data.State == NodeDataState.Downloaded)
             {
 				if (l2dCtl.IsLive2dFolder(GetLocalResPath(currNode), out var fs))
 				{
@@ -453,7 +514,7 @@ namespace Live2DCharacter
             }
         }
         #endregion
-        #endregion
+
 
     }
 }

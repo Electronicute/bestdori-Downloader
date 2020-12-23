@@ -55,7 +55,7 @@ namespace Live2DCharacter
             return path;
         }
 
-        public TreeNode<T> GetChild(T t)
+        public TreeNode<T> FindChild(T t)
         {
             if (Childs != null)
             {
