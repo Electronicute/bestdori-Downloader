@@ -87,6 +87,8 @@ namespace Live2DCharacter
 			url = null;
 			path = null;
 			request = null;
+			node = null;
+			OnCompleted = null;
         }
         #endregion
     }

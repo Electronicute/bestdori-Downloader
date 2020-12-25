@@ -61,6 +61,7 @@ namespace Live2DCharacter
                 json = DownloadHandlerBuffer.GetContent(request);
                 finish(this);
                 OnCompleted?.Invoke(node, Json);
+                request.Dispose();
             }
         }
 
@@ -76,6 +77,7 @@ namespace Live2DCharacter
             request = null;
             json = null;
             OnCompleted = null;
+            node = null;
         }
         #endregion
     }

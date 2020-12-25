@@ -23,6 +23,8 @@ namespace Live2DCharacter
 		private SubDirView dirView;
 		private ProgressView pView;
 		private Live2dCtl l2dCtl;
+		private AudioController audioCtl;
+		private Texture2dView tView;
 
 		public const string InfoUrl = @"https://bestdori.com/api/explorer/jp/assets/";
 		public const string AssetUrl = @"https://bestdori.com/assets/jp/";
@@ -75,6 +77,14 @@ namespace Live2DCharacter
 			view.ShowDlBtn(false);
 			view.ShowReturnBtn(false);
 
+			audioCtl = new AudioController();
+
+			go = GameObject.Instantiate(Resources.Load("Prefabs/Texture2dView")) as GameObject;
+			go.transform.SetParent(GameObject.FindGameObjectWithTag("Canvas").transform, false);
+			tView = go.GetComponent<Texture2dView>();
+			tView.closeBtn.onClick.AddListener(OnClickCloseTexture);
+			tView.Close();
+
 			Debug("初始化中...", ColorView.Default);
 
 			localPath = PlayerPrefs.GetString(localPathKey, @"D:\Download");
@@ -90,10 +100,10 @@ namespace Live2DCharacter
 		#region ----与Downloader交互----
 		public void RequestInfoJson()
 		{
-			//TextAsset text = Resources.Load<TextAsset>("Json/" + infoName);
-			//ParseInfoJson(text.text);
-			Debug("请求Json数据中...", ColorView.Default);
-			downloader.RequestJson(null, infoName + suffix, (n, s) => ParseInfoJson(s));
+            TextAsset text = Resources.Load<TextAsset>("Json/" + infoName);
+            ParseInfoJson(text.text);
+            //Debug("请求Json数据中...", ColorView.Default);
+			//downloader.RequestJson(null, infoName + suffix, (n, s) => ParseInfoJson(s));
 		}
 
 		public void LoadTree(TreeNode<NodeData> node)
@@ -441,9 +451,9 @@ namespace Live2DCharacter
 			}
 			else
 			{
-				currPage = 0;
-				maxPage = 0;
-				dirView.ShowDirItems(null, null, currPage, maxPage, true, false);
+				currPage = 1;
+				maxPage = 1;
+				dirView.ShowDirItems(null, null, 0, 0, true, false);
 			}
 			dirView.SetDirName(currNode.Data.Name);
 			view.ShowReturnBtn(currNode.Parent != null);
@@ -478,8 +488,29 @@ namespace Live2DCharacter
 					ShowNodeDirItems();
 					return;
                 }
+                if (temp.Data.State != NodeDataState.Downloaded)
+                {
+					return;
+                }
+                if (MatchAudio(temp.Data.Name))
+                {
+					audioCtl.Play(GetLocalResPath(currNode), temp.Data.Name);
+                }else if (MatchTexture(temp.Data.Name))
+                {
+					downloader.RequestTexture(GetLocalResPath(currNode) + "/" + temp.Data.Name, OnLoadTexture);
+                }
             }
-			//Debug($"没有子目录了~", ColorView.Red);
+			
+        }
+
+		private void OnClickCloseTexture()
+        {
+			tView.Close();
+        }
+
+		private void OnLoadTexture(Texture2D texture)
+        {
+			tView.Show(texture);
         }
 
 		private void OnShowFinish()
@@ -512,6 +543,16 @@ namespace Live2DCharacter
 				currPage++;
 				ShowNodeDirItems(true);
             }
+        }
+
+		private bool MatchAudio(string name)
+        {
+			return name.Contains(".mp3");
+        }
+
+		private bool MatchTexture(string name)
+        {
+			return name.Contains(".jpg") || name.Contains(".png");
         }
         #endregion
 

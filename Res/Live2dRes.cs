@@ -69,6 +69,7 @@ namespace Live2DCharacter
 			{
 				DoError(request);
 				finish?.Invoke(null);
+				OnCompleted?.Invoke(null);
 				yield break;
 			}
 			texture = DownloadHandlerTexture.GetContent(request);
@@ -76,6 +77,7 @@ namespace Live2DCharacter
 			yield return new WaitForEndOfFrame();
 			finish?.Invoke(this);
 			OnCompleted?.Invoke(this);
+			request.Dispose();
 		}
 
 		IEnumerator IWriteTask.Write(Action finish)
@@ -86,6 +88,9 @@ namespace Live2DCharacter
 
 		void IRes.Release()
 		{
+			mocDatas = null;
+			aniDatas = null;
+			texture = null;
 			paths = null;
 			request = null;
 		}

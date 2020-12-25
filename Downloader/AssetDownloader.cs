@@ -110,6 +110,20 @@ namespace Live2DCharacter
             TryStartRequest();
         }
 
+        public void RequestAudio(string path, string name, Action<AudioClip, string> onCompleted)
+        {
+            AudioRes audio = new AudioRes(path, name, onCompleted);
+            reqs.AddLast(audio);
+            TryStartRequest();
+        }
+
+        public void RequestTexture(string path, Action<Texture2D> onCompleted)
+        {
+            TextureRes res = new TextureRes(path, onCompleted);
+            reqs.AddLast(res);
+            TryStartRequest();
+        }
+
         public void RequestAssets(string[] urls, TreeNode<NodeData>[] nds, Action<TreeNode<NodeData>> onCompleted, Action<bool> onAllCompleted)
         {
             for (int i = 0; i < urls.Length; i++)
