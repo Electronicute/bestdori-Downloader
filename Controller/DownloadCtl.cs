@@ -121,11 +121,11 @@ namespace Live2DCharacter
 
 				foreach (var l in loads)
 				{
-					LoadJson(l, ParseLoadJson);
+					//LoadJson(l, ParseLoadJson);
 				}
 				if (loads.Count > 0)
 				{
-					pView.Show(true);
+					//pView.Show(true);
 					Debug($"新增{loads.Count}个请求");
 				}
 			}
@@ -190,7 +190,7 @@ namespace Live2DCharacter
 						nds[i] = childs[i];
 						urls[i] = GetPathWithoutRoot(node) + ResSuffix + '/' + childs[i].Data.Name;
 					}
-					LoadAssets(urls, nds, ShowNodeDirItems);
+					//LoadAssets(urls, nds, ShowNodeDirItems);
 				}
 				ShowNodeDirItems();
 			}
@@ -245,6 +245,10 @@ namespace Live2DCharacter
 				outputList.Add(node);
 				return;
 			}
+            if (node.Data.State != NodeDataState.Unload || node.Childs == null)
+            {
+				return;
+            }
 			foreach (var n in node.Childs)
 			{
 				TraverseSelect(n, outputList);
