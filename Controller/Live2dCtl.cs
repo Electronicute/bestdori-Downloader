@@ -100,7 +100,7 @@ namespace Live2DCharacter
                 }
             }
 			view.SetFiles(fds, indexs[0], indexs[1], indexs[2]);
-			AssetDownloader.Instance.RequestLive2d(paths, ShowLive2d);
+			LocalAssetLoader.Instance.LoadLive2d(paths, ShowLive2d);
 		}
 		#endregion
 
@@ -136,9 +136,9 @@ namespace Live2DCharacter
 			return -1;
         }
 
-		private void ShowLive2d(Live2dRes res)
+		private void ShowLive2d(byte[] moc, byte[] motion, Texture2D texture)
         {
-			view.InitModel(res.Moc, res.Motion, new Texture2D[]{ res.Texture});
+			view.InitModel(moc, motion, new Texture2D[]{ texture});
 			view.enabled = true;
 			view.ShowReturnBtn(true);
         }

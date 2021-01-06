@@ -38,6 +38,17 @@ namespace Utils
 			return GetLocalPath(assetUrl.Substring(DownloadCtl.AssetUrl.Length));
         }
 
+        public static string AssetUrl2NodePath(string assetUrl)
+        {
+            return assetUrl.Substring(DownloadCtl.AssetUrl.Length).Replace(DownloadCtl.ResSuffix, "");
+        }
+
+        public static string JsonUrl2NodePath(string jsonUrl)
+        {
+            string temp = jsonUrl.Substring(DownloadCtl.InfoUrl.Length);
+            return temp.Substring(0, temp.Length - 5);
+        }
+
 		public static void CreateDirIfNotFound(string url, bool isFolder = false)
         {
             string[] path = url.Split('/');

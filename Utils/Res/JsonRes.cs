@@ -6,6 +6,7 @@
 
 using System;
 using System.Collections;
+using UnityEngine;
 using UnityEngine.Networking;
 
 namespace Utils
@@ -29,7 +30,6 @@ namespace Utils
 
         public override void Request()
         {
-            state = ResState.Loading;
             DownloadManager.Instance.AddToDownload(this);
         }
 
@@ -40,9 +40,19 @@ namespace Utils
 
         public override IEnumerator SendRequest(Action onFinish)
         {
+            if (url == null)
+            {
+                onFinish();
+                yield break;
+            }
+            State = ResState.Loading;
             request = new UnityWebRequest(url);
             request.downloadHandler = new DownloadHandlerBuffer();
             yield return request.SendWebRequest();
+            if (state == ResState.Cancel || request == null)
+            {
+                yield break;
+            }
 
             if (request.result != UnityWebRequest.Result.Success)
             {
@@ -50,19 +60,29 @@ namespace Utils
                 OnLoadFaild();
                 request.Dispose();
                 request = null;
+                errorCount--;
                 yield break;
             }
 
             datas = request.downloadHandler.data;
-            state = ResState.Completed;
+            State = ResState.Completed;
             onFinish();
+            OnReleaseRes();
+            if (request != null)
+            {
+                request.Dispose();
+                request = null;
+            }
         }
 
         public override void OnRecycled()
         {
             base.OnRecycled();
-            request.Dispose();
-            request = null;
+            if (request != null)
+            {
+                request.Dispose();
+                request = null;
+            }
         }
         #endregion
     }

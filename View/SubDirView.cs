@@ -21,14 +21,12 @@ namespace Live2DCharacter
         public Text dirname;
         private Action<int> selected;
         private readonly DirItem[] items = new DirItem[100];
-        private Vector2 pos;
         private Action onShowFinish;
         private bool isShowFinish;
         public Button showLiveBtn;
         public Button nextBtn;
         public Button preBtn;
         public Text pageLabel;
-        private bool isLeaf;
         #endregion
 
         #region ----MonoBehaviour----
@@ -58,20 +56,10 @@ namespace Live2DCharacter
 
         public void SetDirName(string name) => dirname.text = name;
 
-        public void ShowDirItems(List<string> dirs, List<NodeDataState> states, int currPage, int maxPage, bool isLeaf = false, bool ani = true)
+        public void ShowDirItems(List<string> dirs, List<NodeDataState> states, int currPage, int maxPage)
         {
-            this.isLeaf = isLeaf;
             isShowFinish = false;
-            //if (ani)
-            //{
-            //    StopAllCoroutines();
-            //    StartCoroutine(ShowDir(dirs, states, currPage, maxPage, isLeaf));
-            //}
-            //else
-            {
-                ShowDirNormal(dirs, states, currPage, maxPage, isLeaf);
-            }
-            
+            ShowDirNormal(dirs, states, currPage, maxPage);
         }
 
         public void UpdateItem(string name, NodeDataState state)
@@ -100,38 +88,7 @@ namespace Live2DCharacter
             }
         }
 
-        IEnumerator ShowDir(List<string> dirs, List<NodeDataState> states, int currPage, int maxPage, bool isLeaf = false)
-        {
-            DirItem item;
-            
-            float time = 0.1f / dirs.Count;
-            time = Math.Min(time, 0.03f);
-            ShowPage(dirs != null && dirs.Count > 0);
-            preBtn.interactable = (currPage > 1);
-            nextBtn.interactable = (currPage < maxPage);
-            pageLabel.text = currPage + "/" + maxPage;
-            for (int i = 0; i < items.Length; i++)
-            {
-                item = items[i];
-                if (dirs.Count > i)
-                {
-                    item.SetIndex(i);
-                    item.SetText(dirs[i]);
-                    item.SetState(states[i]);
-                    item.Show(true);
-                    yield return new WaitForSeconds(time);
-                }
-                else
-                {
-                    item.Show(false);
-                }
-            }
-            yield return new WaitForEndOfFrame();
-            onShowFinish?.Invoke();
-            isShowFinish = true;
-        }
-
-        void ShowDirNormal(List<string> dirs, List<NodeDataState> states, int currPage, int maxPage, bool isLeaf = false)
+        void ShowDirNormal(List<string> dirs, List<NodeDataState> states, int currPage, int maxPage)
         {
             DirItem item;
             for (int i = 0; i < items.Length; i++)

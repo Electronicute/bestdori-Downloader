@@ -5,7 +5,6 @@
 ***************************************************/
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 
 namespace Utils
@@ -14,6 +13,8 @@ namespace Utils
     {
         #region ----字段----
         protected readonly List<IRes> resList = new List<IRes>();
+        protected int completedCount = 0;
+        protected Action<string> onAllCompleted;
         #endregion
 
         #region ----实现IPoolable----
@@ -22,6 +23,10 @@ namespace Utils
         public void OnRecycled()
         {
             ReleaseAll();
+            completedCount = 0;
+            onAllCompleted = null;
+            resList.Clear();
+            DownloadManager.Instance.RemoveLoader(Name);
             DownloadManager.Instance.RemoveUnUseRes();
         }
         #endregion
@@ -29,33 +34,54 @@ namespace Utils
         #region ----实现ILoader----
         public string Name { get; set; }
 
-        public float Progress
+        public float Progress()
         {
-            get
+            if (resList.Count == 0)
             {
-                float pg = 0;
-                foreach (var res in resList)
-                {
-                    pg += res.Progress;
-                }
-
-                return pg / resList.Count;
+                return 1;
             }
+            float pg = 0;
+            foreach (var res in resList)
+            {
+                pg += res.Progress;
+            }
+
+            return pg / resList.Count;
         }
 
-        public void Add(string[] urls, ResType resType, Action<bool, IRes> listener)
+        public void Add(string[] urls, ResType resType, Action<bool, IRes> listener, bool autoStart = false)
         {
             IRes res;
             foreach (var url in urls)
             {
-                res = DownloadManager.Instance.GetRes(url, resType, true);
+                res = DownloadManager.Instance.GetRes(url, Name, resType, true);
                 res.AddRef();
                 resList.Add(res);
                 if (res.State == ResState.Waiting)
                 {
                     res.RegisterEvent(listener);
-                    res.Request();
+                    res.RegisterEvent(OnFinish);
+                    if (autoStart)
+                    {
+                        res.Request();
+                    }
                 }
+            }
+        }
+
+        void ILoader.StartAll()
+        {
+            foreach (var res in resList)
+            {
+                res.Request();
+            }
+        }
+
+        void ILoader.RegisterEvent(Action<string> onAllCompleted)
+        {
+            if (onAllCompleted != null)
+            {
+                this.onAllCompleted += onAllCompleted;
             }
         }
 
@@ -72,10 +98,12 @@ namespace Utils
             foreach (var res in resList)
             {
                 res.StopRequest();
-                res.ReduceRef();
+                if (res.State != ResState.Completed)
+                {
+                    res.State = ResState.Cancel;
+                }
             }
             Recycle();
-            DownloadManager.Instance.RemoveUnUseRes();
         }
         #endregion
 
@@ -86,5 +114,25 @@ namespace Utils
         }
         #endregion
 
+        #region ----私有方法----
+        private void OnFinish(bool result, IRes res)
+        {
+            if (result)
+            {
+                completedCount++;
+                if (completedCount >= resList.Count)
+                {
+                    onAllCompleted?.Invoke(Name);
+                }
+            }
+            else
+            {
+                if (res.State != ResState.Cancel)
+                {
+                    DownloadManager.Instance.AddToRetry(res);
+                }
+            }
+        }
+        #endregion
     }
 }

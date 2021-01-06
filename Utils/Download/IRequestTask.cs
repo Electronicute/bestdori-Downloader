@@ -6,12 +6,19 @@
 
 using System;
 using System.Collections;
+using UnityEngine;
 
 namespace Utils
 {
 	public interface IRequestTask
 	{
 		IEnumerator SendRequest(Action onFinish);
+
+		byte ErrorCount { get; }
+
+		Coroutine Coroutine { get; set; }
+
+		ResState State { get; set; }
 
 		void StopRequest();
 	}

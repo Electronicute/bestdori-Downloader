@@ -1,20 +1,23 @@
 /**************************************************
 * 创建作者：	咕咕咕
-* 创建时间：	2020-12-31
-* 作用描述：	#线程安全的单例泛型对象池
+* 创建时间：	2021-01-04
+* 作用描述：	#
 ***************************************************/
 
+using System;
+using System.Collections;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Utils
 {
-    public class ObjectPool<T> : Pool<T> where T : IPoolable, IRecyclable, new()
-    {
+	public class MonoObjectPool<T> : Pool<T> where T : MonoBehaviour, IPoolable, IRecyclable
+	{
         #region ----单例----
-        private static ObjectPool<T> instance;
+        private static MonoObjectPool<T> instance;
         private static readonly object lockOjb = new object();
 
-        public static ObjectPool<T> Instance
+        public static MonoObjectPool<T> Instance
         {
             get
             {
@@ -22,7 +25,7 @@ namespace Utils
                 {
                     if (instance == null)
                     {
-                        instance = new ObjectPool<T>();
+                        instance = new MonoObjectPool<T>();
                     }
 
                     return instance;
@@ -32,11 +35,17 @@ namespace Utils
         #endregion
 
         #region ----构造方法----
-        private ObjectPool()
+        private MonoObjectPool() 
         {
-            factory = new DefaultFactory<T>();
-            maxCount = 10;                      //初始化数量：10
-            stack = new Stack<T>(maxCount);           
+            maxCount = 5;
+            stack = new Stack<T>(maxCount);
+        }
+        #endregion
+
+        #region ----公有方法----
+        public void SetFactory(IFactory<T> factory)
+        {
+            this.factory = factory;
             for (int i = 0; i < maxCount; i++)
             {
                 stack.Push(factory.Create());
@@ -75,6 +84,5 @@ namespace Utils
             return true;
         }
         #endregion
-
     }
 }

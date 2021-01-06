@@ -5,83 +5,61 @@
 ***************************************************/
 
 using System;
+using System.Collections.Generic;
 
 namespace Utils
 {
 	public class GQueue<T>
 	{
 		#region ----字段----
-		protected int maxCount;
-		protected int headIdx;
-		protected int tailIdx;
-		protected int length;
-		protected T[] datas;
+		protected Queue<T> datas;
 		#endregion
 
 		#region ----属性----
-		public int Length => length;
+		public int Count => datas.Count;
 		#endregion
 
 		#region ----构造方法----
 		public GQueue(int capacity = 10)
         {
-			maxCount = capacity;
-			datas = new T[maxCount];
+			datas = new Queue<T>(capacity);
         }
 		#endregion
 
 		#region ----公有方法----
 		public void Enqueue(T item)
         {
-			length++;
-            if (length > maxCount)
-            {
-				Dilatation();
-            }
-			if (tailIdx >= maxCount)
-			{
-				tailIdx %= maxCount;
-			}
-			datas[tailIdx] = item;
-			tailIdx++;
+			datas.Enqueue(item);
         }
 
 		public T Dequeue()
         {
-            if (length > 0)
+            if (datas.Count > 0)
             {
-				length--;
-				if (headIdx >= maxCount)
-				{
-					headIdx %= maxCount;
-				}
-				T data = datas[headIdx];
-				datas[headIdx++] = default(T);
-
-				return data;
+				return datas.Dequeue();
 			}
 
 			throw new Exception("队列已经空了！");
 		}
 
-		public void Clear()
+		public void Remove(Func<T, bool> func)
         {
-            for (int i = 0; i < datas.Length; i++)
+			Queue<T> temp = new Queue<T>(datas.Count);
+			while(datas.Count > 0)
             {
-				datas[i] = default(T);
+				T d = datas.Dequeue();
+                if (!func(d))
+                {
+					temp.Enqueue(d);
+                }
             }
-        }
-		#endregion
-
-		#region ----私有方法----
-		private void Dilatation()
-        {
-			maxCount *= 2;
-			T[] temp = new T[maxCount];
-			datas.CopyTo(temp, 0);
 			datas = temp;
         }
-		#endregion
 
+		public void Clear()
+        {
+			datas.Clear();
+        }
+		#endregion
 	}
 }

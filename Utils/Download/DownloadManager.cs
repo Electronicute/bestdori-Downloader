@@ -5,11 +5,7 @@
 ***************************************************/
 
 using System;
-using System.IO;
-using System.Text;
 using System.Collections.Generic;
-using Live2DCharacter;
-using System.Net;
 using UnityEngine;
 
 namespace Utils
@@ -42,27 +38,32 @@ namespace Utils
         #region ----字段----
         public const int MaxDownLoadTrd                         = 4;								//最大请求线程数
         private int CurrTrd                                     = 0;                                //当前线程数
-        private readonly GQueue<IRequestTask> Requests          = new GQueue<IRequestTask>();       //等待请求
-        private readonly GQueue<IRequestTask> Retrys            = new GQueue<IRequestTask>();       //等待重试
+        private readonly GQueue<IRequestTask> Requests           = new GQueue<IRequestTask>();       //等待请求
+        private readonly GQueue<IRequestTask> Retrys             = new GQueue<IRequestTask>();       //等待重试
         private readonly Dictionary<string, IRes> ResDic        = new Dictionary<string, IRes>();	//所有资源
         private readonly Dictionary<string, ILoader> Loaders    = new Dictionary<string, ILoader>();//加载器
         #endregion
 
         #region ----公有方法----
-        public ILoader GetDownloader(string name, string[] urls, ResType resType, Action<bool, IRes> listener = null)
+        public ILoader GetDownloader(string loaderName, string[] urls, ResType resType, Action<bool, IRes> listener = null)
         {
-            ILoader loader = GetLoader(name);
+            ILoader loader = GetLoader(loaderName);
             if (loader == null)
             {
                 loader = ObjectPool<ResDownloader>.Instance.Get();
-                loader.Name = name;
+                loader.Name = loaderName;
+                Loaders.Add(loaderName, loader);
+                loader.Add(urls, resType, listener, false);
             }
-            loader.Add(urls, resType, listener);
+            else
+            {
+                loader.Add(urls, resType, listener, true);
+            }
 
             return loader;
         }
 
-        public IRes GetRes(string url, ResType resType, bool create = true)
+        public IRes GetRes(string url, string loaderName, ResType resType, bool create = true)
         {
             IRes res = GetRes(url);
             if (res != null)
@@ -73,7 +74,7 @@ namespace Utils
             {
                 return null;
             }
-            ResFactory.Create(url, resType);
+            res = ResFactory.Create(url, loaderName, resType);
             if (res != null)
             {
                 ResDic.Add(url, res);
@@ -98,6 +99,11 @@ namespace Utils
             {
                 return;
             }
+            if (task.ErrorCount <= 0)
+            {
+                task.State = ResState.Completed;
+                return;
+            }
             Retrys.Enqueue(task);
             TryStartTask();
         }
@@ -107,13 +113,11 @@ namespace Utils
             List<string> dirtys = new List<string>();
             foreach (var res in ResDic)
             {
-                if (res.Value.RefCount <= 0 && res.Value.State != ResState.Loading)
+                if (res.Value.RefCount <= 0)
                 {
-                    if (res.Value.Release())
-                    {
-                        dirtys.Add(res.Key);
-                        res.Value.Recycle();
-                    }
+                    res.Value.Release();
+                    dirtys.Add(res.Key);
+                    res.Value.Recycle();
                 }
             }
             dirtys.ForEach((d) => ResDic.Remove(d));
@@ -125,9 +129,27 @@ namespace Utils
             {
                 return;
             }
-            StopCoroutine(task.SendRequest(OnRequestFinish));
-            task.StopRequest();
-            task = null;
+            if (task.Coroutine != null && task.State == ResState.Loading)
+            {
+                CurrTrd--;
+                StopCoroutine(task.Coroutine);
+            }
+        }
+
+        public void RemoveLoader(string loaderName)
+        {
+            if (Loaders.ContainsKey(loaderName))
+            {
+                Loaders.Remove(loaderName);
+            }
+            Requests.Remove((t) => ((IRes)t).LoaderName == loaderName);
+            Retrys.Remove((t) => ((IRes)t).LoaderName == loaderName);
+            int count = MaxDownLoadTrd - CurrTrd;
+            while (count > 0)
+            {
+                TryStartTask();
+                count--;
+            }
         }
         #endregion
 
@@ -153,23 +175,23 @@ namespace Utils
             if (CurrTrd < MaxDownLoadTrd)
             {
                 IRequestTask task;
-                if (Retrys.Length > 0)
+                if (Retrys.Count > 0)
                 {
                     task = GetNotEmptyTask(Retrys);
                     if (task != null)
                     {
                         CurrTrd++;
-                        task.SendRequest(OnRequestFinish);
+                        task.Coroutine = StartCoroutine(task.SendRequest(OnRequestFinish));
                         return;
                     }
                 }
-                if (Requests.Length > 0)
+                if (Requests.Count > 0)
                 {
                     task = GetNotEmptyTask(Requests);
                     if (task != null)
                     {
                         CurrTrd++;
-                        task.SendRequest(OnRequestFinish);
+                        task.Coroutine = StartCoroutine(task.SendRequest(OnRequestFinish));
                         return;
                     }
                 }
@@ -185,7 +207,11 @@ namespace Utils
         private IRequestTask GetNotEmptyTask(GQueue<IRequestTask> queue)
         {
             IRequestTask task = queue.Dequeue();
-            if (task == null && queue.Length > 0)
+            if (task == null)
+            {
+                return null;
+            }
+            if (task.State == ResState.Cancel && queue.Count > 0)
             {
                 return GetNotEmptyTask(queue);
             }

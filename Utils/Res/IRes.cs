@@ -11,9 +11,10 @@ namespace Utils
 	public interface IRes : IRecyclable, IRequestTask
 	{
 		string Url { get; }
-		byte[] Datas { get; }
 
-		ResState State { get; }
+		string LoaderName { get; }
+
+		byte[] Datas { get; }
 
 		int RefCount { get; }
 
@@ -25,7 +26,7 @@ namespace Utils
 
 		float Progress { get; }
 
-		bool Release();
+		void Release();
 
 		void RegisterEvent(Action<bool, IRes> onFinish);
 	}
@@ -34,7 +35,7 @@ namespace Utils
     {
 		Waiting,
 		Loading,
-		Writting,
+		Cancel,
 		Completed,
 		Error
     }

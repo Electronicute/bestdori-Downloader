@@ -7,6 +7,8 @@
 using System;
 using System.Collections;
 using UnityEngine.Networking;
+using UnityEngine;
+using System.IO;
 
 namespace Utils
 {
@@ -15,9 +17,19 @@ namespace Utils
         #region ----实现Res----
         public override IEnumerator SendRequest(Action onFinish)
         {
-            request =  new UnityWebRequest(url);
-            request.downloadHandler = new DownloadHandlerFile(LoadUrlHelper.Url2LocalPath(url));
+            if (url == null)
+            {
+                onFinish();
+                yield break;
+            }
+            State = ResState.Loading;
+            request = new UnityWebRequest(url);
+            request.downloadHandler = new DownloadHandlerBuffer();
             yield return request.SendWebRequest();
+            if (state == ResState.Cancel || request == null)
+            {
+                yield break;
+            }
 
             if (request.result != UnityWebRequest.Result.Success)
             {
@@ -25,13 +37,26 @@ namespace Utils
                 OnLoadFaild();
                 request.Dispose();
                 request = null;
+                errorCount--;
                 yield break;
             }
-            state = ResState.Completed;
+
+            var handler = request.downloadHandler as DownloadHandlerBuffer;
+            FileStream fs = new FileStream(LoadUrlHelper.Url2LocalPath(url), FileMode.OpenOrCreate);
+            fs.Write(handler.data, 0, handler.data.Length);
+            yield return new WaitForEndOfFrame();
+            fs.Flush();
+            fs.Close();
+            fs.Dispose();
+
+            State = ResState.Completed;
             onFinish();
-            OnReleaseRes();
-            request.Dispose();
-            request = null;
+            //OnReleaseRes();
+            if (request != null)
+            {
+                request.Dispose();
+                request = null;
+            }
         }
 
         public override void Recycle()

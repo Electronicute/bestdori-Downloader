@@ -6,8 +6,7 @@
 
 using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Threading.Tasks;
+using UnityEngine;
 
 namespace Utils
 {
@@ -15,19 +14,29 @@ namespace Utils
     {
         #region ----字段----
         protected string url;
+        protected string loaderName;
         protected byte[] datas;
-        protected ResState state        = ResState.Waiting;
+        protected ResState state;
+        protected byte errorCount;
         private int refCount;
         private Action<bool, IRes> listener;
         #endregion
 
         #region ----公有方法----
-        public static T Get<T>(string url) where T : Res, new()
+        public static T Get<T>(string url, string loaderName) where T : Res, new()
         {
             T res = ObjectPool<T>.Instance.Get();
             res.url = url;
+            res.loaderName = loaderName;
+            res.state = ResState.Waiting;
+            res.errorCount = 4;
 
             return res;
+        }
+
+        public override string ToString()
+        {
+            return url;
         }
         #endregion
 
@@ -44,21 +53,28 @@ namespace Utils
 
         protected void OnLoadFaild()
         {
-            state = ResState.Error;
+            State = ResState.Error;
             OnResult(false);
         }
 
         private void OnResult(bool result)
         {
             listener?.Invoke(result, this);
-            listener = null;
+            if (result)
+            {
+                listener = null;
+            }
         }
         #endregion
 
         #region ----实现IRes----
         string IRes.Url => url;
 
+        string IRes.LoaderName => loaderName;
+
         byte[] IRes.Datas => datas;
+
+        byte IRequestTask.ErrorCount => errorCount;
 
         public ResState State
         {
@@ -69,6 +85,9 @@ namespace Utils
                 if (state == ResState.Completed)
                 {
                     OnResult(true);
+                }else if (state == ResState.Cancel)
+                {
+                    OnResult(false);
                 }
             }
         }
@@ -113,21 +132,11 @@ namespace Utils
             }
         }
 
-        public bool Release()
+        public void Release()
         {
-            if (state == ResState.Loading)
-            {
-                return false;
-            }
-            if (state != ResState.Completed)
-            {
-                return true;
-            }
             OnReleaseRes();
-            state = ResState.Waiting;
+            State = ResState.Waiting;
             listener = null;
-
-            return true;
         }
 
         void IRes.RegisterEvent(Action<bool, IRes> onFinish)
@@ -152,9 +161,11 @@ namespace Utils
             yield break;
         }
 
+        Coroutine IRequestTask.Coroutine { get; set; }
+
         public virtual void StopRequest()
         {
-            
+            DownloadManager.Instance.StopRequest(this);
         }
         #endregion
 
@@ -164,6 +175,7 @@ namespace Utils
         public virtual void OnRecycled()
         {
             url = null;
+            loaderName = null;
             listener = null;
         }
         #endregion

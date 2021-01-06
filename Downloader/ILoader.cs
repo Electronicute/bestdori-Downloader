@@ -5,18 +5,19 @@
 ***************************************************/
 
 using System;
-using System.Collections;
-using System.Collections.Generic;
-
 namespace Utils
 {
 	public interface ILoader : IPoolable, IRecyclable
 	{
 		string Name { get; set; }
 
-		float Progress { get; }
+		float Progress();
 
-		void Add(string[] urls, ResType resType, Action<bool, IRes> listener);
+		void Add(string[] urls, ResType resType, Action<bool, IRes> listener, bool autoStart = false);
+
+		void RegisterEvent(Action<string> onAllCompleted);
+
+		void StartAll();
 
 		void StopAll();
 

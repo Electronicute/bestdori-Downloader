@@ -8,14 +8,14 @@ namespace Utils
 {
 	public class ResFactory
 	{
-		public static IRes Create(string url, ResType type)
+		public static IRes Create(string url, string loaderName, ResType type)
         {
             switch (type)
             {
                 case ResType.Json:
-                    return Res.Get<JsonRes>(url);
+                    return Res.Get<JsonRes>(url, loaderName);
                 case ResType.DownloadRes:
-                    return Res.Get<AssetRes>(url);
+                    return Res.Get<AssetRes>(url, loaderName);
             }
 
             return null;

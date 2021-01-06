@@ -47,7 +47,8 @@ namespace Live2DCharacter
 				view.Play(true);
 				return;
             }
-			AssetDownloader.Instance.RequestAudio(path + "/" + name, name, OnLoadClip);
+			curName = name;
+			LocalAssetLoader.Instance.LoadAudio(path + "/" + name, name, OnLoadClip);
         }
 		#endregion
 
