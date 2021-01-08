@@ -9,6 +9,7 @@ using System;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using Utils;
 
 namespace Live2DCharacter
 {
@@ -31,9 +32,12 @@ namespace Live2DCharacter
         #endregion
 
         #region ----公有方法----
-        public void SetIndex(int index) => this.index = index;
-
-        public void SetText(string str) => text.text = str;
+        public void SetData(DirItemData data)
+        {
+            index = data.Index;
+            text.text = data.Name;
+            SetState(data.State);
+        }
 
         public string GetText() => text.text;
 

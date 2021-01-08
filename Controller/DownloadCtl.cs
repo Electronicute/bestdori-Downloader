@@ -31,15 +31,12 @@ namespace Live2DCharacter
 		public const string ResSuffix = "_rip";
 		public static string localPath = null;
 		private const string localPathKey = "Live2dDownloadPath";
-		public const int ShowItemCount = 100;
 
 		private const string infoName = "_info";
 		private const string suffix = ".json";
 
 		private GenericTree<NodeData> jsonTree;
 		private TreeNode<NodeData> currNode;
-		private int currPage = 1;
-		private int maxPage = 1;
 		#endregion
 
 		#region ----构造方法----
@@ -59,10 +56,8 @@ namespace Live2DCharacter
 			go.transform.SetParent(GameObject.FindGameObjectWithTag("DownloadPanel").transform, false);
 			dirView = go.GetComponent<SubDirView>();
 
-			dirView.InitDirItme(ShowItemCount);
+			dirView.InitDirItme();
 			dirView.showLiveBtn.onClick.AddListener(OnClickShowLive);
-			dirView.nextBtn.onClick.AddListener(OnClickNextPage);
-			dirView.preBtn.onClick.AddListener(OnClickPrePage);
 			dirView.RegisterSelect(OnSelected);
 			dirView.RegisterShowFinish(OnShowFinish);
 			dirView.Show(false);
@@ -420,53 +415,22 @@ namespace Live2DCharacter
 			dirView.Show(true);
 			view.dlBtn.interactable = false;
 			view.rtBtn.interactable = false;
+			dirView.SetDirName(currNode.Data.Name);
 			//CheckCurrNodePath();
 			if (currNode.Childs != null)
 			{
-				List<string> names;
-				List<NodeDataState> states;
-				int startIndex = 0;
-				int lastIndex = 0;
-				if (currNode.Childs.Count > ShowItemCount)
-                {
-					maxPage = Mathf.CeilToInt(currNode.Childs.Count / (float)ShowItemCount);
-					startIndex = ShowItemCount * (currPage - 1);
-                    if (currPage == maxPage)
-                    {
-						lastIndex = currNode.Childs.Count;
-						names = new List<string>(lastIndex - startIndex);
-						states = new List<NodeDataState>(lastIndex - startIndex);
-                    }
-                    else
-                    {
-						lastIndex = startIndex + ShowItemCount;
-						names = new List<string>(ShowItemCount);
-						states = new List<NodeDataState>(ShowItemCount);
-					}
-				}
-                else
-                {
-					lastIndex = currNode.Childs.Count;
-					names = new List<string>(currNode.Childs.Count);
-					states = new List<NodeDataState>(currNode.Childs.Count);
-					currPage = 1;
-					maxPage = 1;
-				}
+				List<DirItemData> datas = new List<DirItemData>(currNode.Childs.Count);
 				//Math.Min(100, currNode.Childs.Count);
-				for (int i = startIndex; i < lastIndex; i++)
+				for (int i = 0; i < currNode.Childs.Count; i++)
 				{
-					names.Add(currNode.Childs[i].Data.Name);
-					states.Add(currNode.Childs[i].Data.State);
+					datas.Add(new DirItemData(currNode.Childs[i].Data.Name, currNode.Childs[i].Data.State, i));
 				}
-				dirView.ShowDirItems(names, states, currPage, maxPage);
+				dirView.ShowDirItems(datas);
 			}
 			else
 			{
-				currPage = 1;
-				maxPage = 1;
-				dirView.ShowDirItems(null, null, 0, 0);
+				dirView.ShowDirItems(new List<DirItemData>());
 			}
-			dirView.SetDirName(currNode.Data.Name);
 			view.ShowReturnBtn(currNode.Parent != null);
 
 			view.ShowDlBtn(currNode.Data.State == NodeDataState.Unload && currNode.Parent != null);
@@ -536,24 +500,6 @@ namespace Live2DCharacter
 			l2dCtl.CheckToShowLive();
 			l2dCtl.ShowLive2dByFolder(GetLocalResPath(currNode));
 			WindowAnimation.Instance.ShowLiveWindow(null);
-        }
-
-		private void OnClickPrePage()
-        {
-            if (currPage > 1)
-            {
-				currPage--;
-				ShowNodeDirItems();
-            }
-        }
-
-		private void OnClickNextPage()
-        {
-            if (currPage < maxPage)
-            {
-				currPage++;
-				ShowNodeDirItems();
-            }
         }
 
 		private bool MatchAudio(string name)

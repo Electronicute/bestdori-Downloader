@@ -43,12 +43,16 @@ namespace Utils
         #endregion
 
         #region ----公有方法----
-        public void SetFactory(IFactory<T> factory)
+        public void SetFactory(IFactory<T> factory, int maxCount = 5, int initCount = 5)
         {
             this.factory = factory;
-            for (int i = 0; i < maxCount; i++)
+            this.maxCount = maxCount;
+            if (initCount > 0)
             {
-                stack.Push(factory.Create());
+                for (int i = 0; i < initCount; i++)
+                {
+                    stack.Push(factory.Create());
+                }
             }
         }
         #endregion

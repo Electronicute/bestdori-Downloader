@@ -6,7 +6,7 @@
 ***************************************************/
 
 using System;
-using System.Collections;
+using Utils;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,46 +20,50 @@ namespace Live2DCharacter
         public Transform itemParent;
         public Text dirname;
         private Action<int> selected;
-        private readonly DirItem[] items = new DirItem[100];
+        private const int showCount = 30;
+        private readonly List<DirItem> items = new List<DirItem>(showCount);
         private Action onShowFinish;
         private bool isShowFinish;
         public Button showLiveBtn;
-        public Button nextBtn;
-        public Button preBtn;
-        public Text pageLabel;
-        #endregion
-
-        #region ----MonoBehaviour----
-        void Awake()
-        {
-	    }
+        public ScrollPage page;
+        private List<DirItemData> datas;
+        private int perPageCount;
         #endregion
 
         #region ----公有方法----
-        public void InitDirItme(int count)
+        public void InitDirItme()
         {
-            DirItem item;
             GameObject go;
-            for (int i = 0; i < count; i++)
+            DirItem item;
+            for (int i = 0; i < showCount; i++)
             {
                 go = Instantiate(subDirItem, itemParent, false) as GameObject;
                 item = go.GetComponent<DirItem>();
-                items[i] = item;
                 item.Show(false);
                 item.Register(OnSelected);
+                items.Add(item);
             }
+            perPageCount = showCount / 2;
+            page.InitData(24, perPageCount, showCount, showCount);
+            page.RegisterChanged(OnPageChanged);
         }
 
         public void RegisterSelect(Action<int> action) => selected += action;
 
         public void RegisterShowFinish(Action action) => onShowFinish += action;
 
-        public void SetDirName(string name) => dirname.text = name;
-
-        public void ShowDirItems(List<string> dirs, List<NodeDataState> states, int currPage, int maxPage)
+        public void SetDirName(string name) 
         {
+            dirname.text = name;
+        }
+
+        public void ShowDirItems(List<DirItemData> dirs)
+        {
+            datas = dirs;
             isShowFinish = false;
-            ShowDirNormal(dirs, states, currPage, maxPage);
+            page.Reset(showCount, datas.Count);
+            onShowFinish?.Invoke();
+            isShowFinish = true;
         }
 
         public void UpdateItem(string name, NodeDataState state)
@@ -88,37 +92,39 @@ namespace Live2DCharacter
             }
         }
 
-        void ShowDirNormal(List<string> dirs, List<NodeDataState> states, int currPage, int maxPage)
+        private bool OnPageChanged(int page)
         {
+            if (page == 0)
+            {
+                ShowPage(page);
+                return true;
+            }
+            if (page * perPageCount >= datas.Count)
+            {
+                return false;
+            }
+            ShowPage(page);
+            return true;
+        }
+
+        private void ShowPage(int page)
+        {
+            int startIndex = page * perPageCount;
             DirItem item;
-            for (int i = 0; i < items.Length; i++)
+            for (int i = 0; i < showCount; i++)
             {
                 item = items[i];
-                if (dirs != null && dirs.Count > i)
+                if (datas.Count > startIndex)
                 {
-                    item.SetIndex(i);
-                    item.SetText(dirs[i]);
-                    item.SetState(states[i]);
+                    item.SetData(datas[startIndex]);
                     item.Show(true);
                 }
                 else
                 {
                     item.Show(false);
                 }
+                startIndex++;
             }
-            onShowFinish?.Invoke();
-            isShowFinish = true;
-            ShowPage(dirs != null && dirs.Count > 0);
-            preBtn.interactable = (currPage > 1);
-            nextBtn.interactable = (currPage < maxPage);
-            pageLabel.text = currPage + "/" + maxPage;
-        }
-
-        void ShowPage(bool show)
-        {
-            nextBtn.gameObject.SetActive(show);
-            preBtn.gameObject.SetActive(show);
-            pageLabel.gameObject.SetActive(show);
         }
         #endregion
     }
