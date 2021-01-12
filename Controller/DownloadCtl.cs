@@ -25,12 +25,64 @@ namespace Live2DCharacter
 		private Live2dCtl l2dCtl;
 		private AudioController audioCtl;
 		private Texture2dView tView;
+		private SettingView sView;
+		private ConfirmView cView;
 
-		public const string InfoUrl = @"https://bestdori.com/api/explorer/jp/assets/";
-		public const string AssetUrl = @"https://bestdori.com/assets/jp/";
+		private GameObject mask;
+
+		private static string infoUrl;
+		public static string InfoUrl
+        {
+            get
+            {
+                if (infoUrl == null)
+                {
+					infoUrl = _infoUrl + CountryConfig[Country] + "/assets/";
+                }
+
+				return infoUrl;
+            }
+        }
+
+		private static string assetUrl;
+		public static string AssetUrl
+        {
+            get
+            {
+                if (assetUrl == null)
+                {
+					assetUrl = _assetUrl + CountryConfig[Country] + "/";
+
+				}
+
+				return assetUrl;
+            }
+        }
+
+		private static string localPath;
+		public static string LocalPath
+        {
+            get
+            {
+                if (localPath == null)
+                {
+					localPath = _localPath + $"\\{CountryConfig[Country]}";
+                }
+
+				return localPath;
+            }
+        }
+
+		private const string _infoUrl = @"https://bestdori.com/api/explorer/";
+		private const string _assetUrl = @"https://bestdori.com/assets/";
 		public const string ResSuffix = "_rip";
-		public static string localPath = null;
+		private static string _localPath = null;
 		private const string localPathKey = "Live2dDownloadPath";
+
+		public static int Country = -1;
+		private const string CountryKey = "Country";
+		private static readonly string[] CountryConfig = new string[5] { "jp", "cn", "en", "kr", "tw"};
+		private int countryTemp = 0;
 
 		private const string infoName = "_info";
 		private const string suffix = ".json";
@@ -47,10 +99,11 @@ namespace Live2DCharacter
 			go.transform.SetParent(GameObject.FindGameObjectWithTag("DownloadPanel").transform, false);
 			view = go.GetComponent<DownloadView>();
 
-			view.pathBtn.onClick.AddListener(OnClickPathBtn);
+			//view.pathBtn.onClick.AddListener(OnClickPathBtn);
 			view.dlBtn.onClick.AddListener(OnClickDlBtn);
 			view.rtBtn.onClick.AddListener(OnClickRtBtn);
-			view.changePathBtn.onClick.AddListener(OnClickChangePath);
+			view.stBtn.onClick.AddListener(OnClickSettingBtn);
+			//view.changePathBtn.onClick.AddListener(OnClickChangePath);
 
 			go = GameObject.Instantiate(Resources.Load("Panel/SubDirView")) as GameObject;
 			go.transform.SetParent(GameObject.FindGameObjectWithTag("DownloadPanel").transform, false);
@@ -58,6 +111,7 @@ namespace Live2DCharacter
 
 			dirView.InitDirItme();
 			dirView.showLiveBtn.onClick.AddListener(OnClickShowLive);
+			dirView.openLocalBtn.onClick.AddListener(OnClickPathBtn);
 			dirView.RegisterSelect(OnSelected);
 			dirView.RegisterShowFinish(OnShowFinish);
 			dirView.Show(false);
@@ -76,23 +130,48 @@ namespace Live2DCharacter
 			tView.closeBtn.onClick.AddListener(OnClickCloseTexture);
 			tView.Close();
 
-			localPath = PlayerPrefs.GetString(localPathKey, @"D:\Download");
-            if (!string.IsNullOrWhiteSpace(localPath))
+			sView = GameObject.FindGameObjectWithTag("SettingView").GetComponent<SettingView>();
+			sView.RegisterEvent(OnSelectCountry);
+			sView.openPathBtn.onClick.AddListener(OnClickChangePath);
+			sView.submitBtn.onClick.AddListener(OnClickSubmitBtn);
+
+			cView = GameObject.FindGameObjectWithTag("ConfirmView").GetComponent<ConfirmView>();
+			cView.OnClickNo();
+
+			mask = GameObject.FindGameObjectWithTag("Mask");
+			mask.SetActive(false);
+
+			_localPath = PlayerPrefs.GetString(localPathKey, @"D:\Download");
+            if (!string.IsNullOrWhiteSpace(_localPath))
             {
-				view.SetDlPath(localPath);
+				sView.SetDownloadPath(_localPath);
 			}
-			RequestInfoJson();
-			WindowAnimation.Instance.ShowDownloadWindow(null);
+			int ct = PlayerPrefs.GetInt(CountryKey, -1);
+            if (ct == -1)
+            {
+				mask.SetActive(false);
+				sView.Show(true);
+				sView.SetIndex(0);
+            }
+            else
+            {
+				mask.SetActive(true);
+				Country = ct;
+				RequestInfoJson();
+			}
 		}
 		#endregion
 
 		#region ----与Downloader交互----
 		public void RequestInfoJson()
 		{
-            TextAsset text = Resources.Load<TextAsset>("Json/" + infoName);
-            ParseInfoJson(text.text);
-            //Debug("请求Json数据中...", ColorView.Default);
-			//downloader.RequestJson(null, infoName + suffix, (n, s) => ParseInfoJson(s));
+			//TextAsset text = Resources.Load<TextAsset>("Json/" + infoName);
+			//ParseInfoJson(text.text);
+			infoUrl = null;
+			assetUrl = null;
+			localPath = null;
+			//UnityEngine.Debug.Log(InfoUrl + infoName + suffix);
+			DownloadManager.Instance.GetDownloader(infoName, new string[] { InfoUrl + infoName + suffix }, ResType.Json, ParseInfoJson).StartAll();
 		}
 
 		public void LoadTree(TreeNode<NodeData> node)
@@ -143,17 +222,22 @@ namespace Live2DCharacter
         #endregion
 
         #region ----ParseJsonData----
-        private void ParseInfoJson(string json)
+        private void ParseInfoJson(bool result, IRes res)
 		{
-			if (json != null)
+			//UnityEngine.Debug.Log($"{InfoUrl} -> {result}");
+			if (result)
 			{
-				JsonData jsonData = JsonParser.GetData(json);
+				string str = Encoding.UTF8.GetString(res.Datas);
+				JsonData jsonData = JsonParser.GetData(str);
 				currNode = new TreeNode<NodeData>(new NodeData(infoName));
 				jsonTree = new GenericTree<NodeData>(currNode);
 				TraverseCreate(jsonData, currNode);
 				Check(currNode);
 				view.ShowJsonTree(true);
 				ShowNodeDirItems();
+				sView.Show(false);
+				mask.SetActive(false);
+				WindowAnimation.Instance.ShowDownloadWindow(null);
 			}
 		}
 
@@ -344,7 +428,7 @@ namespace Live2DCharacter
 		/// </summary>
 		private string GetLocalResPath(TreeNode<NodeData> node)
 		{
-			return localPath + "/" + GetPathWithoutRoot(node) + ResSuffix;
+			return LocalPath + "/" + GetPathWithoutRoot(node) + ResSuffix;
 		}
 
 		/// <summary>
@@ -372,14 +456,57 @@ namespace Live2DCharacter
 			view.ShowDebug(msg, color);
         }
 
+		private void OnClickSettingBtn()
+        {
+            if (progressCtl.IsLoading())
+            {
+				cView.Show("警告", "资源正在下载中，更改设置有可能会导致下载目录不正确，确定继续前往设置界面？", "确定", "取消", ToSetting);
+            }
+            else
+            {
+				ToSetting();
+			}
+        }
+
+		private void ToSetting()
+        {
+			//progressCtl.StopAll();
+			WindowAnimation.Instance.HideDownloadWindow(null);
+			sView.Show(true);
+			sView.SetIndex(Country);
+		}
+
 		private void OnClickPathBtn()
 		{
-			System.Diagnostics.Process.Start("explorer.exe", localPath.Replace("/", "\\"));
+			string path = LocalPath + "/" + GetPathWithoutRoot(currNode);
+            if (Directory.Exists(path))
+            {
+				System.Diagnostics.Process.Start("explorer.exe", path.Replace("/", "\\"));
+				return;
+			}
+			path = path + ResSuffix;
+			if (Directory.Exists(path))
+			{
+				System.Diagnostics.Process.Start("explorer.exe", path.Replace("/", "\\"));
+				return;
+			}
+
+		}
+
+		private bool HasPath(TreeNode<NodeData> node)
+        {
+			string path = LocalPath + "/" + GetPathWithoutRoot(currNode);
+            if (Directory.Exists(path) || Directory.Exists(path + ResSuffix))
+            {
+				return true;
+            }
+
+			return false;
 		}
 
 		private void OnClickDlBtn()
 		{
-            if (string.IsNullOrWhiteSpace(localPath))
+            if (string.IsNullOrWhiteSpace(_localPath))
             {
 				OnClickChangePath();
 				return;
@@ -404,7 +531,7 @@ namespace Live2DCharacter
             {
 				localPath = path;
 				PlayerPrefs.SetString(localPathKey, localPath);
-				view.SetDlPath(localPath);
+				sView.SetDownloadPath(localPath);
 			}
         }
 		#endregion
@@ -436,6 +563,7 @@ namespace Live2DCharacter
 			view.ShowDlBtn(currNode.Data.State == NodeDataState.Unload && currNode.Parent != null);
 			view.SetTreeNode(GetPath(currNode));
 			dirView.ShowLiveBtn(IsLiveFolder());
+			dirView.ShowLocalBtn(HasPath(currNode));
 		}
 
 		private bool IsLiveFolder()
@@ -513,6 +641,26 @@ namespace Live2DCharacter
         }
         #endregion
 
+        #region ----与Setting交互----
+		private void OnClickSubmitBtn()
+        {
+			sView.ShowBtns(false);
+            if (countryTemp != Country)
+            {
+				mask.SetActive(true);
+				Country = countryTemp;
+				PlayerPrefs.SetInt(CountryKey, Country);
+				RequestInfoJson();
+				return;
+			}
+			sView.Show(false);
+			WindowAnimation.Instance.ShowDownloadWindow(null);
+        }
 
+		private void OnSelectCountry(int index)
+        {
+			countryTemp = index;
+        }
+        #endregion
     }
 }

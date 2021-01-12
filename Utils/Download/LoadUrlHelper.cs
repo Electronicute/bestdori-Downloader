@@ -25,7 +25,7 @@ namespace Utils
 
 		public static string GetLocalPath(string nodePath)
         {
-            return DownloadCtl.localPath + '/' + nodePath;
+            return DownloadCtl.LocalPath + '/' + nodePath;
         }
 
 		public static string StandardLocalPath(string path)
@@ -57,7 +57,7 @@ namespace Utils
             {
                 lastIndex--;
             }
-            StringBuilder sb = new StringBuilder(DownloadCtl.localPath);
+            StringBuilder sb = new StringBuilder(DownloadCtl.LocalPath);
             string curPath;
             for (int i = 0; i <= lastIndex; i++)
             {

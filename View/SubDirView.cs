@@ -25,6 +25,7 @@ namespace Live2DCharacter
         private Action onShowFinish;
         private bool isShowFinish;
         public Button showLiveBtn;
+        public Button openLocalBtn;
         public ScrollPage page;
         private List<DirItemData> datas;
         private int perPageCount;
@@ -81,6 +82,8 @@ namespace Live2DCharacter
         public void Show(bool show) => gameObject.SetActive(show);
 
         public void ShowLiveBtn(bool show) => showLiveBtn.gameObject.SetActive(show);
+
+        public void ShowLocalBtn(bool show) => openLocalBtn.gameObject.SetActive(show);
         #endregion
 
         #region ----私有方法----

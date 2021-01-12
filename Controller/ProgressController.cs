@@ -74,6 +74,43 @@ namespace Utils
 				}
             }
         }
+
+		public bool IsLoading()
+        {
+            if (loaders.Count > 0)
+            {
+				return true;
+            }
+            foreach (var v in views)
+            {
+                if (v.Loader.Progress() < 1)
+                {
+					return true;
+                }
+            }
+			return false;
+        }
+
+		public void StopAll()
+        {
+            while (loaders.Count > 0)
+            {
+				loaders.Dequeue().StopAll();
+            }
+			LoaderView lv;
+			ProgressView pv;
+			for (int i = views.Count - 1; i >= 0; i--)
+			{
+				lv = views[i];
+
+				pv = lv.View;
+				pv.cancelBtn.gameObject.SetActive(false);
+				pv.Stop();
+				lv.Loader.StopAll();
+				pv.Remove(null, 0);
+			}
+			views.Clear();
+		}
 		#endregion
 
 		#region ----私有方法----

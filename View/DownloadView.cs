@@ -21,6 +21,7 @@ namespace Live2DCharacter
         public Text jsonTreeNode;
         public Button dlBtn;
         public Button rtBtn;
+        public Button stBtn;
         #endregion
 
         #region ----公有方法----
